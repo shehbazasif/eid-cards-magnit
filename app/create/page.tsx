@@ -11,10 +11,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import html2canvas from "html2canvas" // Import html2canvas
 
 // Card designs
 const designs = [
-  // Eid ul Fitr designs
   {
     type: "fitr",
     background: "https://placehold.co/600x400/4CAF50/FFFFFF",
@@ -33,7 +33,6 @@ const designs = [
     thumbnail: "https://placehold.co/100x80/9C27B0/FFFFFF",
     name: "Mosque Silhouette",
   },
-  // Eid ul Adha designs
   {
     type: "adha",
     background: "https://placehold.co/600x400/F44336/FFFFFF",
@@ -66,7 +65,6 @@ const colors = [
 
 // Quotes
 const quotes = [
-  // Eid ul Fitr quotes
   {
     type: "fitr",
     text: "May the blessings of Allah fill your life with happiness and open all the doors of success now and always.",
@@ -79,7 +77,6 @@ const quotes = [
     type: "fitr",
     text: "May this Eid bring joy, health, and wealth to you and your family.",
   },
-  // Eid ul Adha quotes
   {
     type: "adha",
     text: "May the divine blessings of Allah bring you hope, faith, and joy on Eid ul Adha and forever. Happy Eid ul Adha!",
@@ -104,35 +101,80 @@ export default function CardCreator() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Reset selected design when eid type changes
+  // Function to download the card as an image
+  const downloadCard = async () => {
+    const cardElement = document.getElementById("card-preview") // Reference the card preview element
+    if (!cardElement) return
+
+    try {
+      // Use html2canvas to capture the element
+      const canvas = await html2canvas(cardElement, {
+        useCORS: true, // Enable cross-origin resource sharing for external images
+        scale: 2, // Increase resolution for better quality
+      });
+
+      // Convert the canvas to a data URL
+      const dataUrl = canvas.toDataURL("image/png");
+
+      // Create a temporary link element to trigger the download
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "eid-card.png";
+      document.body.appendChild(link); // Append the link to the document
+      link.click(); // Trigger the download
+      document.body.removeChild(link); // Remove the link after download
+    } catch (error) {
+      console.error("Failed to generate image:", error)
+    }
+  }
+
+  // Function to share the card using the Browser Share API
+  const shareCard = async () => {
+    const cardElement = document.getElementById("card-preview") // Reference the card preview element
+    if (!cardElement) return
+
+    try {
+      // Use html2canvas to capture the element
+      const canvas = await html2canvas(cardElement, {
+        useCORS: true, // Enable cross-origin resource sharing for external images
+        scale: 2, // Increase resolution for better quality
+      });
+
+      // Convert the canvas to a data URL
+      const dataUrl = canvas.toDataURL("image/png");
+
+      // Convert the data URL to a Blob
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+
+      // Check if the browser supports the Share API
+      if (navigator.share) {
+        const file = new File([blob], "eid-card.png", { type: "image/png" });
+
+        // Use the Share API to share the image
+        await navigator.share({
+          title: "Eid Card",
+          text: "Check out this Eid card I created!",
+          files: [file], // Share the image file
+        });
+      } else {
+        alert("Your browser does not support the Share API.");
+      }
+    } catch (error) {
+      console.error("Failed to share the card:", error);
+    }
+  }
+
+  // Reset selected design and quote when eid type changes
   useEffect(() => {
     setSelectedDesign(0)
     setSelectedQuote("0")
   }, [eidType])
 
-  // Filtered designs based on eid type
   const filteredDesigns = designs.filter((design) => design.type === eidType)
-
-  // Current design
   const currentDesign = filteredDesigns[selectedDesign] || filteredDesigns[0]
-
-  // Filtered quotes based on eid type
   const filteredQuotes = quotes.filter((quote) => quote.type === eidType)
-
-  // Current quote
   const currentQuote = filteredQuotes[Number.parseInt(selectedQuote)] || filteredQuotes[0]
-
-  // Share link
-  const shareLink = `https://eidcards.example.com/share?eid=${eidType}&design=${selectedDesign}&color=${encodeURIComponent(selectedColor)}&quote=${selectedQuote}&from=${encodeURIComponent(sender)}&to=${encodeURIComponent(recipient)}`
-
-  // Copy share link
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(shareLink)
-    setCopied(true)
-    setTimeout(() => {
-      setCopied(false)
-    }, 2000)
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -249,9 +291,12 @@ export default function CardCreator() {
                     </Select>
                   </div>
 
-                  {/* Share Button */}
-                  <Button onClick={() => setShowShareModal(true)} className="w-full bg-primary hover:bg-primary/90">
+                  {/* Share and Download Buttons */}
+                  <Button onClick={shareCard} className="w-full bg-primary hover:bg-primary/90">
                     Share Card
+                  </Button>
+                  <Button onClick={downloadCard} className="mt-4 w-full bg-primary hover:bg-primary/90">
+                    Download Card
                   </Button>
                 </div>
               </CardContent>
@@ -265,6 +310,7 @@ export default function CardCreator() {
                 <h2 className="text-xl font-semibold mb-4">Preview</h2>
 
                 <div
+                  id="card-preview" // Add an ID to the card preview container
                   className="relative rounded-lg overflow-hidden shadow-lg aspect-[4/3] max-w-2xl mx-auto"
                   style={{ backgroundColor: selectedColor }}
                 >
@@ -298,24 +344,6 @@ export default function CardCreator() {
           </div>
         </div>
       </div>
-
-      {/* Share Modal */}
-      <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Your Card</DialogTitle>
-            <DialogDescription>Copy this link to share your Eid card</DialogDescription>
-          </DialogHeader>
-
-          <div className="flex mb-4">
-            <Input readOnly value={shareLink} className="flex-grow rounded-r-none" />
-            <Button onClick={copyShareLink} className="rounded-l-none" variant="secondary">
-              {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
-
